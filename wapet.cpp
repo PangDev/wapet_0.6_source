@@ -1,32 +1,32 @@
 #include <windows.h>
+#include <tchar.h>
+#include <atlstr.h>
 #include <direct.h>
 #include <stdio.h>
 #include <io.h>
 
-#include "wildcard.cpp"
-
-#define APPNAME             "wapet"
-#define TVERSION            "0.6"
-#define TDATE               "2007-05-11"
-#define TCOPYRIGHT          "Copyright (c) 2002-2003 Case.  Minor additions by Neil Popham, 2004-2007"  // NTP 2004-08-19
-#define TDESCRIPTION        "Post-Encoding APE Tagger"
+#define APPNAME             _T("wapet")
+#define TVERSION            _T("0.6")
+#define TDATE               _T("2007-05-11")
+#define TCOPYRIGHT          _T("Copyright (c) 2002-2003 Case.  Minor additions by Neil Popham, 2004-2007")  // NTP 2004-08-19
+#define TDESCRIPTION        _T("Post-Encoding APE Tagger")
 
 // -------------------------------------
 
 void usage ()
 {
-    printf ("\n"
-            APPNAME " - " TDESCRIPTION "\n"
-            TCOPYRIGHT "\n"
-            "Version " TVERSION ", Compiled " TDATE "\n\n"
-            "Usage: " APPNAME " <target> [tagging options] <encoder> <encoder options>\n"
-            "\n"
-            "target          : name of the file <encoder> creates\n"
-            "tagging options : -t \"tag=value\" ; for example -t \"Artist=%%a\"\n"
-            "                : -f \"tag=file\" ; set tag from contents of file <file>\n"
-            "                : -ape1 ; use APEv1 instead of APEv2\n"
-            "encoder         : name of the encoder\n"
-            "encoder options : required parameters for encoder\n"
+    _tprintf (_T("\n")
+            APPNAME _T(" - ") TDESCRIPTION _T("\n")
+            TCOPYRIGHT _T("\n")
+            _T("Version ") TVERSION _T(", Compiled ") TDATE _T("\n\n")
+            _T("Usage: ") APPNAME _T(" <target> [tagging options] <encoder> <encoder options>\n")
+            _T("\n")
+            _T("target          : name of the file <encoder> creates\n")
+            _T("tagging options : -t \"tag=value\" ; for example -t \"Artist=%%a\"\n")
+            _T("                : -f \"tag=file\" ; set tag from contents of file <file>\n")
+            _T("                : -ape1 ; use APEv1 instead of APEv2\n")
+            _T("encoder         : name of the encoder\n")
+            _T("encoder options : required parameters for encoder\n")
            );
 }
 
@@ -91,97 +91,51 @@ int unicodeToUtf8 ( const WCHAR* lpWideCharStr, char* lpMultiByteStr, int cwcCha
             *pmb++ = (char)(0x80 |  (wc        & 0x3F));
             cBytes++;
         }
-        if ( wc == L'\0' )
+        if ( wc == _T('\0') )
             return cBytes;
     }
 
     return cBytes;
 }
 
-int ansi_to_utf8 ( const char *ansi, char *utf8, int alen )
+int ansi_to_utf8 ( const TCHAR *ansi, char *utf8 )
 {
-    WCHAR   *wszValue;
-    int     len;
-
-    if ( alen <= 0 ) alen = strlen ( ansi );
-    if ( alen == 0 ) {
-        *utf8 = '\0';
-        return 0;
-    }
-
-    if ( (wszValue = (WCHAR *)malloc ((alen + 1) * 2)) == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
-        return 1;
-    }
-
-    // Convert ANSI value to Unicode
-    if ( (len = MultiByteToWideChar (CP_ACP, 0, ansi, alen, wszValue, (alen + 1) * 2)) == 0 ) {
-        fprintf ( stderr, APPNAME ": MultiByteToWideChar failed...\n" );
-        return 1;
-    }
-    wszValue[len++] = L'\0';
-    // Convert Unicode value to UTF-8
-    if ( (len = unicodeToUtf8 (wszValue, utf8, len)) == 0 ) {
-        fprintf ( stderr, APPNAME ": unicodeToUtf8 failed...\n" );
-        return 1;
-    }
-
-    return 0;
+	CT2CA utf8str(ansi, CP_UTF8);
+	size_t outlen = ::strlen(utf8str);
+	if (outlen > 0) {
+		strcpy(utf8, utf8str);
+	}
+	else {
+		*utf8 = '\0';
+	}
+	return 0;
 }
 
-int len_utf8 ( const char *ansi, int alen )
+int len_utf8 ( const TCHAR *ansi )
 {
-    WCHAR   *wszValue;
-    char    *uszValue;
-    int     len;
-
-    if ( alen <= 0 ) alen = strlen ( ansi );
-    if ( alen == 0 ) return 0;
-
-    if ( (wszValue = (WCHAR *)malloc ((alen + 1) * 2)) == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
-        return 1;
-    }
-    if ( (uszValue = (char *) malloc ((alen + 1) * 3)) == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
-        return 1;
-    }
-
-    // Convert ANSI value to Unicode
-    if ( (len = MultiByteToWideChar (CP_ACP, 0, ansi, alen, wszValue, (alen + 1) * 2)) == 0 ) {
-        fprintf ( stderr, APPNAME ": MultiByteToWideChar failed...\n" );
-        return 1;
-    }
-    wszValue[len++] = L'\0';
-    // Convert Unicode value to UTF-8
-    if ( (len = unicodeToUtf8 (wszValue, uszValue, len)) == 0 ) {
-        fprintf ( stderr, APPNAME ": unicodeToUtf8 failed...\n" );
-        return 1;
-    }
-
-    free ( uszValue );
-
-    return len-1;
+	CT2CA utf8str(ansi, CP_UTF8);
+	return ::strlen(utf8str);
 }
 
-int proper_tag ( const char *tag )
+int proper_tag ( TCHAR *tag )
 {
-    char *p;
-    if ( (!tag) || (*tag == '\0') || (*tag == '=') ) return 0;
-    if ( (p = strchr (tag, '=')) == NULL ) return 0;
-    if ( *(p+1) == '\0' ) return 0;
-    if ( !lstrcmpi (tag, "year=-1") ) return 0;
+    TCHAR *p;
+    if ( (!tag) || (*tag == _T('\0')) || (*tag == _T('=')) ) return 0;
+    if ( (p = _tcschr(tag, _T('='))) == NULL ) return 0;
+    if ( *(p+1) == _T('\0') ) return 0;
+    if ( !_tcscmp (tag, _T("year=-1")) ) return 0;
     return 1;
 }
 
 // Writes APEv1/v2 tag
-int WriteAPETag ( FILE *fp, char **tags, size_t tag_count, int ape1 )
+int WriteAPETag ( FILE *fp, TCHAR **tags, size_t tag_count, int ape1 )
 {
     unsigned char               temp[4];
     unsigned char               *buff;
     unsigned char               *p;
     struct APETagFooterStruct   T;
     unsigned int                flags;
+	char                        *tag;
     char                        *value;
     size_t                      itemlen;
     size_t                      valuelen;
@@ -197,13 +151,18 @@ int WriteAPETag ( FILE *fp, char **tags, size_t tag_count, int ape1 )
 
     for ( i = 0; i < tag_count; i++ ) {
         if ( proper_tag (tags[i]) ) {
-            char *t = strchr ( tags[i], '=' ) + 1;
+            TCHAR *t = _tcschr ( tags[i], _T('=') ) + 1;
+			TCHAR *equal = t - 1;
+			*equal = _T('\0');
             itemlen = t - tags[i] - 1;
             if ( ape1 ) {
-                valuelen = strlen ( t ) + 1;
+                itemlen = _tcsclen ( tags[i] );
+                valuelen = _tcsclen ( t ) + 1;
             } else {
-                valuelen = len_utf8 ( t, 0 );
+                itemlen = len_utf8 ( tags[i] );
+                valuelen = len_utf8 ( t );
             }
+			*equal = _T('=');
             TagCount++;
             TagSize += 8 + itemlen + 1 + valuelen;
         }
@@ -211,8 +170,8 @@ int WriteAPETag ( FILE *fp, char **tags, size_t tag_count, int ape1 )
 
     if ( TagCount == 0 ) return 0;
 
-    if ( (buff = malloc (TagSize + sizeof (T))) == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
+    if ( (buff = (unsigned char *)malloc (TagSize + sizeof (T))) == NULL ) {
+        _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
         return 1;
     }
 
@@ -232,38 +191,66 @@ int WriteAPETag ( FILE *fp, char **tags, size_t tag_count, int ape1 )
 
     for ( i = 0; i < tag_count; i++ ) {
         if ( proper_tag (tags[i]) ) {
-            char *t = strchr ( tags[i], '=' ) + 1;
+            TCHAR *t = _tcschr ( tags[i], _T('=') ) + 1;
+			TCHAR *equal = t - 1;
             itemlen = t - tags[i] - 1;
+			*equal = _T('\0');
             if ( ape1 ) {
-                valuelen = strlen ( t ) + 1;
-                value = (char *)malloc ( valuelen+1 );
-                if ( value == NULL ) {
-                    fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
+				tag = (char *)malloc( sizeof(TCHAR) * (itemlen+1) );
+                if ( tag == NULL ) {
+                    _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
                     free ( buff );
                     return 1;
                 }
-                strcpy ( value, t );
+                valuelen = _tcsclen ( t ) + 1;
+                value = (char *)malloc ( sizeof(TCHAR) * (valuelen+1) );
+                if ( value == NULL ) {
+                    _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
+					free ( tag );
+                    free ( buff );
+                    return 1;
+                }
+				_tcscpy ( (TCHAR*)tag, tags[i] );
+                if ( *(TCHAR*)tag >= _T('a') && *(TCHAR*)tag <= _T('z') ) *(TCHAR*)tag -= _T('a') - _T('A');
+				itemlen *= sizeof(TCHAR);
+				_tcscpy ( (TCHAR*)value, t );
             } else {
-                valuelen = len_utf8 ( t, 0 );
+				itemlen = len_utf8 (tags[i]);
+				tag = (char*)malloc ( itemlen+1 );
+				if (tag == NULL) {
+                    _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
+                    free ( buff );
+                    return 1;
+				}
+                valuelen = len_utf8 ( t );
                 value = (char *)malloc ( valuelen+1 );
                 if ( value == NULL ) {
-                    fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
+                    _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
+					free ( tag );
                     free ( buff );
                     return 1;
                 }
-                if ( ansi_to_utf8 (t, value, 0) != 0 ) {
+				if ( ansi_to_utf8 (tags[i], tag) != 0 ) {
+					free ( tag );
+					free ( value );
+					free ( buff );
+					return 1;
+				}
+                if ( ansi_to_utf8 (t, value) != 0 ) {
+					free ( tag );
+					free ( value );
                     free ( buff );
                     return 1;
                 }
             }
+			*equal = _T('=');
 
             Write_LE_Uint32 ( temp, valuelen );
             memcpy ( p, temp, 4 );  p += 4;
             Write_LE_Uint32 ( temp, 0 );
             memcpy ( p, temp, 4 );  p += 4;
 
-            memcpy ( p, tags[i], itemlen );
-            if ( *p >= 'a' && *p <= 'z' ) *p -= 'a' - 'A';
+            memcpy ( p, tag, itemlen );
             p += itemlen;
             *p++ = '\0';
 
@@ -296,20 +283,20 @@ int WriteAPETag ( FILE *fp, char **tags, size_t tag_count, int ape1 )
     return 0;
 }
 
-int write_tag ( const char *filename, char **tags, size_t tag_count, int ape1 )
+int write_tag ( const TCHAR *filename, TCHAR **tags, size_t tag_count, int ape1 )
 {
     FILE *fp;
     int  error;
 
     if ( tag_count == 0 ) return 0;
 
-    if ( (fp = fopen (filename, "rb+")) == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to open file...\n" );
+    if ( (fp = _tfopen (filename, _T("rb+"))) == NULL ) {
+        _ftprintf ( stderr, APPNAME _T(": failed to open file...\n") );
         return 1;
     }
 
     if ( (error = WriteAPETag (fp, tags, tag_count, ape1)) != 0 ) {
-        fprintf ( stderr, APPNAME ": tag writing failed...\n" );
+        _ftprintf ( stderr, APPNAME _T(": tag writing failed...\n") );
     }
 
     fclose (fp);
@@ -327,26 +314,26 @@ long get_filesize (FILE *f)
     return length;
 }
 
-int main ( int argc, char **argv )
+int _tmain ( int argc, TCHAR **argv )
 {
     // proggie <encoded file> [tagging options] <encoder + options>
     //    0          1               2..n               n+1
 
-    char **option = NULL;
-    char *cmd = NULL;
+    TCHAR **option = NULL;
+    TCHAR *cmd = NULL;
     int arg_enc = 0;
     int opt_c = 0;
     int enc_c = 0;
     int ape1 = 0;
     int i;
 
-    char * t;
+    TCHAR * t;
     size_t itemlen;
     FILE*   stream;
     int        ch;
     int force_ape2 = 0;
     int j;
-    char * filearg;
+    TCHAR * filearg = NULL;
     long file_size;
 
     if ( argc < 3 ) {
@@ -355,57 +342,38 @@ int main ( int argc, char **argv )
     }
 
     // allocate memory for maximum possible number of tagging options
-    option = (char **)malloc ( sizeof(char *) * (argc-2) );
+    option = (TCHAR **)malloc ( sizeof(TCHAR *) * (argc-2) );
     if ( option == NULL ) {
-        fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
+        _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
         return 1;
     }
 
     for ( i = 2; i < argc; i++ ) {
 
-        if ( !lstrcmp (argv[i], "-t") ) {  // tagging option
+        if ( !_tcscmp (argv[i], _T("-t")) ) {  // tagging option
             if ( (++i)+1 >= argc ) {
-                fprintf ( stderr, APPNAME ": no encoding settings specified...\n" );
+                _ftprintf ( stderr, APPNAME _T(": no encoding settings specified...\n") );
                 free ( option );
                 return 1;
             }
 
             option[opt_c++] = argv[i];
 
-        } else if ( !lstrcmp (argv[i], "-f") ) {  // tag from file
+        } else if ( !_tcscmp (argv[i], _T("-f")) ) {  // tag from file
             if ( (++i)+1 >= argc ) {
-                fprintf ( stderr, APPNAME ": no encoding settings specified...\n" );
+                _ftprintf ( stderr, APPNAME _T(": no encoding settings specified...\n") );
                 free ( option );
                 return 1;
             }
             // check format is <tag>=<value>
             if ( proper_tag (argv[i]) ) {
-                t = strchr ( argv[i], '=' ) + 1;
+                t = _tcschr( argv[i], _T('=') ) + 1;
                 itemlen = t - argv[i] - 1;
 
-                stream = wild_fopen ( t, "rb" );
-
-                if (!stream && filespec_name (argv[0])) {
-                    char *temp = malloc (strlen (argv[0]) + MAX_PATH);
-
-                    strcpy (temp, argv[0]);
-                    strcpy (filespec_name (temp), t);
-                    stream = wild_fopen (temp, "rb");
-                    free (temp);
-                }
-
-                if (!stream && filespec_name (argv[1])) {
-                    char *temp = malloc (strlen (argv[i]) + MAX_PATH);
-
-                    strcpy (temp, argv[1]);
-                    strcpy (filespec_name (temp), t);
-                    stream = wild_fopen (temp, "rb");
-                    free (temp);
-                }
-
+                stream = _tfopen ( t, _T("rb") );
                 // check file exists
                 if ( stream == NULL ) {
-                    fprintf ( stderr, APPNAME ": Failed to open \"%s\" for for reading.\n", t );
+                    _ftprintf ( stderr, APPNAME _T(": Failed to open \"%s\" for for reading.\n"), t );
                     return 1;
                 }
 
@@ -415,29 +383,29 @@ int main ( int argc, char **argv )
                 // get file size
                 file_size = get_filesize(stream);
                 // create dynamic array and set filearg to "<tag>="
-                filearg = (char *)malloc(file_size + itemlen + 2);
-                strncpy(filearg, argv[i], itemlen + 1);
+                filearg = (TCHAR *)malloc(sizeof(TCHAR) * (file_size + itemlen + 2));
+                _tcsnccpy(filearg, argv[i], itemlen + 1);
                 // start filling char array after "="
                 j = itemlen + 1;
                 // read text from file
-                while ( ( ch = fgetc (stream) ) != EOF ) {
+                while ( ( ch = _fgettc(stream) ) != EOF ) {
                     // add character to array
-                    filearg[j] = (char)ch;
+                    filearg[j] = (TCHAR)ch;
                     j++;
                 }
                 // terminate will null char
-                filearg[j] = '\0';
+                filearg[j] = _T('\0');
                 // close stream
                 fclose (stream);
                 // append to array
                 option[opt_c++] = filearg;
             } else {
-                fprintf ( stderr, APPNAME ": -f switch requires \"<tag>=<file>\" parameter.\n" );
+                _ftprintf ( stderr, APPNAME _T(": -f switch requires \"<tag>=<file>\" parameter.\n") );
                 free ( option );
                 return 1;
             }
         }
-        else if ( !lstrcmp (argv[i], "-ape1" ) && !force_ape2 ) {  // use APEv1
+        else if ( !_tcscmp (argv[i], _T("-ape1") ) && !force_ape2 ) {  // use APEv1
             ape1 = 1;
         }
         else {
@@ -449,22 +417,22 @@ int main ( int argc, char **argv )
 
     if ( enc_c == 0 ) {
         free ( option );
-        fprintf ( stderr, APPNAME ": no encoding settings specified...\n" );
+        _ftprintf ( stderr, APPNAME _T(": no encoding settings specified...\n") );
         return 1;
     }
 
     {
-        char *p;
+        TCHAR *p;
         int cmd_len = _MAX_PATH;
 
         for ( i = 1; i < enc_c; i++ ) {
-            cmd_len += strlen ( argv[arg_enc+i] ) + 3;
+            cmd_len += _tcsclen ( argv[arg_enc+i] ) + 3;
         }
 
-        cmd = (char *)malloc ( cmd_len );
+        cmd = (TCHAR *)malloc ( sizeof(TCHAR) * cmd_len );
         if ( cmd == NULL ) {
             free ( option );
-            fprintf ( stderr, APPNAME ": failed to allocate memory...\n" );
+            _ftprintf ( stderr, APPNAME _T(": failed to allocate memory...\n") );
             return 1;
         }
 
@@ -472,22 +440,22 @@ int main ( int argc, char **argv )
 
         i = GetShortPathName ( argv[arg_enc], p, _MAX_PATH );
         if ( (i == 0) || (i > _MAX_PATH) ) {
-            p += sprintf ( p, "%s", argv[arg_enc] );
+            p += _stprintf ( p, _T("%s"), argv[arg_enc] );
         } else {
             p += i;
         }
 
         for ( i = 1; i < enc_c; i++ ) {
-            p += sprintf ( p, " \"%s\"", argv[arg_enc+i] );
+            p += _stprintf ( p, _T(" \"%s\""), argv[arg_enc+i] );
         }
     }
 
     // encode
-    system ( cmd );
+    _tsystem ( cmd );
 
     i = write_tag ( argv[1], option, opt_c, ape1 );
 
-    free (filearg );
+    free ( filearg );
     free ( option );
     free ( cmd );
 
